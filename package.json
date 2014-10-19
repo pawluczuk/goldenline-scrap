@@ -3,6 +3,7 @@
   "dependencies": {
     "sqlite3" : "*",
     "cheerio" : "*",
-    "request" : "*"
+    "request" : "*",
+    "async-series" : "*"
   }
 }

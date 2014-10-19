@@ -1,6 +1,7 @@
 var sqlite3 = require('sqlite3').verbose();
 var cheerio = require('cheerio');
 var request = require('request');
+var async = require('async-series');
 var db = new sqlite3.Database('goldenline');
 
 var charCodeRange = {
@@ -11,26 +12,41 @@ var mapurl = 'http://www.goldenline.pl/profile/mapa/';
 
 function saveProfiles(letter, numOfPages) {
 	db.serialize(function() {
+		console.log("preparing letter " + letter);
 		var stmt = db.prepare("INSERT INTO hyperlinks VALUES (?, NULL, 0)");
+		var counter = 0;
+		var functions = [];
 		for (var i = 1; i <= numOfPages; i++)
 		{
 			var url = mapurl + letter + '/s/' + i;
-			request(url, (function(i) {
-				return function(err, resp, html) {
-					if (err) console.log(err);
-					var $ = cheerio.load(html);
-					var profileUrl = $('div#people a[href]').attr('href');
-					stmt.run(profileUrl);
-					if (++i > numOfPages) stmt.finalize();
-				};
-			})(i));
+
+			functions.push(function(callback){
+				request(url, (function(i) {
+					return function(err, resp, html) {
+						if (err) console.log(err);
+						var $ = cheerio.load(html);
+						var profileUrls = $('div#people a[href]').map(function(t,a) { return a.attribs.href; }).toArray();
+						profileUrls.forEach(function(el) {
+							stmt.run(el);
+							callback();
+						});
+					};
+				})(i));
+			});
+			
+
+			async(functions, function() {
+				console.log("finalized letter " + letter);
+				if (letter === 'z') stmt.finalize(function() {
+					db.close();
+				});
+			});
 		}
 	});
-	db.close();
 }
 
 function start() {
-	for (var cc = charCodeRange.start; cc <= charCodeRange.start; cc++) {
+	for (var cc = charCodeRange.start; cc <= charCodeRange.end; cc++) {
 		var letter = String.fromCharCode(cc);
 		var validurl = mapurl + letter;
 		request(validurl, (function(cc) 
