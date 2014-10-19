@@ -62,10 +62,7 @@ function start() {
 	}
 	async(functions, function() {
 		console.log("finalized letter " + String.fromCharCode(cc));
-		if (String.fromCharCode(cc) === 'z') {
-			console.log("end");
-			db.close();
-		}
+		db.close();
 	});
 }
 
