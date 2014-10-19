@@ -44,37 +44,29 @@ function saveProfiles(letter, numOfPages) {
 function start() {
 	var functions = [];
 	for (var cc = charCodeRange.start; cc <= charCodeRange.end; cc++) {
-		var letter = String.fromCharCode(cc);
-		var validurl = mapurl + letter;
-		
-		(function(cc) {
-			functions.push(function(callback) {
-				request(validurl, (function(cc) 
-				{
-					if (String.fromCharCode(cc) === 'q') saveProfiles(String.fromCharCode(cc), 1);
-					return function(err, resp, html) {
-						var $ = cheerio.load(html);
-						var last = $('ul.pager:not(#contactLetters) a[href]:not(.next)').last();
-						
-				 		last.filter(function() {
-							var data = $(this);
-							numOfPages = Number(data.text());
-							saveProfiles(String.fromCharCode(cc), numOfPages);
-						});
-						callback();
-					};
-				})(cc));
+		var validurl = mapurl + String.fromCharCode(cc);
+		functions.push(function(callback) {
+			request(validurl, function(err, resp, html) {
+				if (String.fromCharCode(cc) === 'q') saveProfiles(String.fromCharCode(cc), 1);
+				var $ = cheerio.load(html);
+				var last = $('ul.pager:not(#contactLetters) a[href]:not(.next)').last();
+				
+		 		last.filter(function() {
+					var data = $(this);
+					numOfPages = Number(data.text());
+					saveProfiles(String.fromCharCode(cc), numOfPages);
+				});
+				callback();
 			});
-
-			async(functions, function() {
-				console.log("finalized letter " + String.fromCharCode(cc));
-				if (String.fromCharCode(cc) === 'z') {
-					console.log("end");
-					db.close();
-				}
-			});
-		})(cc);
+		});
 	}
+	async(functions, function() {
+		console.log("finalized letter " + String.fromCharCode(cc));
+		if (String.fromCharCode(cc) === 'z') {
+			console.log("end");
+			db.close();
+		}
+	});
 }
 
 start();
