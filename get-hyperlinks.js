@@ -14,7 +14,6 @@ function saveProfiles(letter, numOfPages) {
 	db.serialize(function() {
 		console.log("preparing letter " + letter);
 		var stmt = db.prepare("INSERT INTO hyperlinks VALUES (?, NULL, 0)");
-		var counter = 0;
 		var functions = [];
 		for (var i = 1; i <= numOfPages; i++)
 		{
@@ -35,34 +34,46 @@ function saveProfiles(letter, numOfPages) {
 			});
 
 			async(functions, function() {
-				console.log("finalized letter ");
-				if (letter === 'z') stmt.finalize(function() {
-					console.log("end");
-					db.close();
-				});
+				console.log("finalized page within letter " + letter);
+				if (letter === 'z') stmt.finalize();
 			});
 		}
 	});
 }
 
 function start() {
+	var functions = [];
 	for (var cc = charCodeRange.start; cc <= charCodeRange.end; cc++) {
 		var letter = String.fromCharCode(cc);
 		var validurl = mapurl + letter;
-		request(validurl, (function(cc) 
-		{
-			if (String.fromCharCode(cc) === 'q') saveProfiles(String.fromCharCode(cc), 1);
-			return function(err, resp, html) {
-				var $ = cheerio.load(html);
-				var last = $('ul.pager:not(#contactLetters) a[href]:not(.next)').last();
-				
-		 		last.filter(function() {
-					var data = $(this);
-					numOfPages = Number(data.text());
-					saveProfiles(String.fromCharCode(cc), numOfPages);
-				});
-			};
-		})(cc));
+		
+		(function(cc) {
+			functions.push(function(callback) {
+				request(validurl, (function(cc) 
+				{
+					if (String.fromCharCode(cc) === 'q') saveProfiles(String.fromCharCode(cc), 1);
+					return function(err, resp, html) {
+						var $ = cheerio.load(html);
+						var last = $('ul.pager:not(#contactLetters) a[href]:not(.next)').last();
+						
+				 		last.filter(function() {
+							var data = $(this);
+							numOfPages = Number(data.text());
+							saveProfiles(String.fromCharCode(cc), numOfPages);
+						});
+						callback();
+					};
+				})(cc));
+			});
+
+			async(functions, function() {
+				console.log("finalized letter " + String.fromCharCode(cc));
+				if (String.fromCharCode(cc) === 'z') {
+					console.log("end");
+					db.close();
+				}
+			});
+		})(cc);
 	}
 }
 
