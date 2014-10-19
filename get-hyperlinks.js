@@ -28,16 +28,16 @@ function saveProfiles(letter, numOfPages) {
 						var profileUrls = $('div#people a[href]').map(function(t,a) { return a.attribs.href; }).toArray();
 						profileUrls.forEach(function(el) {
 							stmt.run(el);
-							callback();
 						});
+						callback();
 					};
 				})(i));
 			});
-			
 
 			async(functions, function() {
-				console.log("finalized letter " + letter);
+				console.log("finalized letter ");
 				if (letter === 'z') stmt.finalize(function() {
+					console.log("end");
 					db.close();
 				});
 			});
