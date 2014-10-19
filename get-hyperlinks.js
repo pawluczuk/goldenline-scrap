@@ -10,9 +10,8 @@ var charCodeRange = {
 };
 var mapurl = 'http://www.goldenline.pl/profile/mapa/';
 
-function saveProfiles(letter, numOfPages) {
+function getOneLetterPage(letter, numOfPages) {
 	db.serialize(function() {
-		console.log("preparing letter " + letter);
 		var stmt = db.prepare("INSERT INTO hyperlinks VALUES (?, NULL, 0)");
 		var functions = [];
 		for (var i = 1; i <= numOfPages; i++)
@@ -32,13 +31,20 @@ function saveProfiles(letter, numOfPages) {
 					};
 				})(i));
 			});
-
-			async(functions, function() {
-				console.log("finalized page within letter " + letter);
-				if (letter === 'z') stmt.finalize();
-			});
 		}
+		async(functions, function() {
+			console.log("finalized page within letter " + letter);
+			stmt.finalize();
+		});
 	});
+}
+
+function numberOfPages(html) {
+	var $ = cheerio.load(html);
+	var last = $('ul.pager:not(#contactLetters) a[href]:not(.next)').last();
+	console.log(Number(last.text()));
+	if (!last) return 1;
+	else return Number(last.text());
 }
 
 function start() {
@@ -47,21 +53,14 @@ function start() {
 		var validurl = mapurl + String.fromCharCode(cc);
 		functions.push(function(callback) {
 			request(validurl, function(err, resp, html) {
-				if (String.fromCharCode(cc) === 'q') saveProfiles(String.fromCharCode(cc), 1);
-				var $ = cheerio.load(html);
-				var last = $('ul.pager:not(#contactLetters) a[href]:not(.next)').last();
-				
-		 		last.filter(function() {
-					var data = $(this);
-					numOfPages = Number(data.text());
-					saveProfiles(String.fromCharCode(cc), numOfPages);
-				});
+				var numOfPages = numberOfPages(html);
+				//getOneLetterPage(String.fromCharCode(cc), numOfPages);
+				console.log("letter " + String.fromCharCode(cc) + "\tno" + numberOfPages);
 				callback();
 			});
 		});
 	}
 	async(functions, function() {
-		console.log("finalized letter " + String.fromCharCode(cc));
 		db.close();
 	});
 }
