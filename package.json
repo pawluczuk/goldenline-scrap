@@ -1,0 +1,8 @@
+{
+  "name": "goldenLineScrap",
+  "dependencies": {
+    "sqlite3" : "*",
+    "cheerio" : "*",
+    "request" : "*"
+  }
+}
