@@ -2,13 +2,14 @@ var sqlite3 = require('sqlite3').verbose();
 var cheerio = require('cheerio');
 var request = require('request');
 var async = require('async-series');
-var util = require('util');
 var db = new sqlite3.Database('goldenline');
 
 function parseData(html) {
 	var $ = cheerio.load(html);
 	var data = [];
-	var sections = $('.details section').each(function(){
+	var sections = $('.details section');
+	if (!sections.length) return null;
+	section.each(function(){
 		var section = $(this).prevAll('.title').first().text().replace(/\s+/g, '');
 		if (section === 'Podsumowanie') section = 'Praca';
 		if (!$(this).hasClass('experience')) return true;
@@ -35,12 +36,14 @@ function saveProfile(url, insert, update) {
 	return function(callback) {
 		request(url, function(err, response, html) {
 			var obj = parseData(html);
-			insert.run(obj, function() {
-				update.run({ $dataid : obj.$dataid, $hyperlink : url}, function() {
-					console.log('Ins: ' + obj.$dataid);
-					callback();
+			if (obj !== null) {
+				insert.run(obj, function() {
+					update.run({ $dataid : obj.$dataid, $hyperlink : url}, function() {
+						console.log('Ins: ' + obj.$dataid + ' Url: ' + url);
+						callback();
+					});
 				});
-			});
+			}
 		});
 	};
 }
@@ -73,7 +76,7 @@ function insertChunk(chunk, i) {
 }
 
 function start() {
-	var stmt = db.prepare("SELECT hyperlink, dataid FROM hyperlinks WHERE downloaded = 0 limit 100000");
+	var stmt = db.prepare("SELECT hyperlink FROM hyperlinks WHERE downloaded = 0 limit 1000");
 	var counter = 0;
 	stmt.all(function(err, rows) {
 		console.log("Finished reading all hyperlinks.");
@@ -89,7 +92,6 @@ function start() {
 			});
 		});
 	});
-	//if (counter++ % 1000 === 0) console.log(util.inspect(process.memoryUsage()) + ' \ncount: ' + counter);
 }
 
 start();
