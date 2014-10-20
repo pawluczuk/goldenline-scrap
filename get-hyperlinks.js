@@ -10,57 +10,59 @@ var charCodeRange = {
 };
 var mapurl = 'http://www.goldenline.pl/profile/mapa/';
 
-function getOneLetterPage(letter, numOfPages) {
-	db.serialize(function() {
-		var stmt = db.prepare("INSERT INTO hyperlinks VALUES (?, NULL, 0)");
-		var functions = [];
-		for (var i = 1; i <= numOfPages; i++)
-		{
-			var url = mapurl + letter + '/s/' + i;
-
-			functions.push(function(callback){
-				request(url, (function(i) {
-					return function(err, resp, html) {
-						if (err) console.log(err);
-						var $ = cheerio.load(html);
-						var profileUrls = $('div#people a[href]').map(function(t,a) { return a.attribs.href; }).toArray();
-						profileUrls.forEach(function(el) {
-							stmt.run(el);
-						});
-						callback();
-					};
-				})(i));
+function processOnePage(letter, pagenumber, stmt) {
+	return function(callback) {
+		console.log('Processing letter ' + letter + '\tpage number ' + pagenumber);
+		var url = mapurl + letter + '/s/' + pagenumber;
+		request(url, function(err, resp, html) {
+			var $ = cheerio.load(html);
+			var profileUrls = $('div#people a[href]').map(function(t,a) { return a.attribs.href; }).toArray();
+			profileUrls.forEach(function(link) {
+				stmt.run(link);
 			});
-		}
-		async(functions, function() {
-			console.log("finalized page within letter " + letter);
-			stmt.finalize();
+			callback();
 		});
-	});
+	};
+}
+
+function procesLetterPages(letter, numOfPages) {
+	var functions = [];
+	var stmt = db.prepare("INSERT INTO hyperlinks VALUES (?, NULL, 0)");
+	for (var i = 1; i <= numOfPages; i++)
+	{
+		functions.push(processOnePage(letter, i, stmt));
+	}
+	async(functions, function(){
+		console.log('Finalized letter ' + letter);
+		stmt.finalize();
+	});	
 }
 
 function numberOfPages(html) {
 	var $ = cheerio.load(html);
 	var last = $('ul.pager:not(#contactLetters) a[href]:not(.next)').last();
-	console.log(Number(last.text()));
-	if (!last) return 1;
-	else return Number(last.text());
+	return (Number(last.text()) === 0) ? 1 : Number(last.text());
+}
+
+function processLetter(letter) {
+	return function(callback) {
+		var validurl = mapurl + letter;
+		request(validurl, function(err, resp, html) {
+			var numOfPages = numberOfPages(html);
+			console.log('Starting letter ' + letter + '\t with no of pages ' + numOfPages + '...');
+			procesLetterPages(letter, numOfPages);
+			callback();
+		});
+	};
 }
 
 function start() {
 	var functions = [];
 	for (var cc = charCodeRange.start; cc <= charCodeRange.end; cc++) {
-		var validurl = mapurl + String.fromCharCode(cc);
-		functions.push(function(callback) {
-			request(validurl, function(err, resp, html) {
-				var numOfPages = numberOfPages(html);
-				//getOneLetterPage(String.fromCharCode(cc), numOfPages);
-				console.log("letter " + String.fromCharCode(cc) + "\tno" + numberOfPages);
-				callback();
-			});
-		});
+		functions.push(processLetter(String.fromCharCode(cc)));
 	}
 	async(functions, function() {
+		console.log('Finished downloading public profile hyperlinks.')
 		db.close();
 	});
 }
