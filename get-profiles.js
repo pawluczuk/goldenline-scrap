@@ -20,13 +20,15 @@ function parseData(html) {
 	var summary = $('.user-summary .headline').text().replace(/\s+/g, ' ');
 	var edu = (data['Edukacja'] === undefined) ? '' : data['Edukacja'];
 	var work = (data['Praca'] === undefined) ? '' : data['Praca'];
+	var friends = Number($('.usersList > h4').text().replace('Znajomi (', '').replace(')', ''));
 	return {
 				$dataid : dataid,
 				$work : work,
 				$edu : edu,
 				$tags : tags,
-				$summary : summary
-			}
+				$summary : summary,
+				$friends : friends
+			};
 }
 
 function saveProfile(url, insert, update) {
@@ -34,18 +36,18 @@ function saveProfile(url, insert, update) {
 		request(url, function(err, response, html) {
 			var obj = parseData(html);
 			insert.run(obj, function() {
-				update.run({ $dataid : obj.$dataid }, function() {
-					console.log('Inserted: ' + obj.$dataid);
+				update.run({ $dataid : obj.$dataid, $hyperlink : url}, function() {
+					console.log('Ins: ' + obj.$dataid);
 					callback();
 				});
-			})
+			});
 		});
 	};
 }
 
 function downloadChunk(chunk, callback) {
-	var insert = db.prepare("INSERT INTO users VALUES ($dataid, $work, $edu, $tags, $summary)");
-	var update = db.prepare("UPDATE hyperlinks SET downloaded = 1 WHERE dataid = $dataid");
+	var insert = db.prepare("INSERT INTO users VALUES ($dataid, $work, $edu, $tags, $summary, $friends)");
+	var update = db.prepare("UPDATE hyperlinks SET downloaded = 1, dataid = $dataid WHERE hyperlink = $hyperlink");
 	functions = [];
 	for (var i = 0; i < chunk.length; i++)
 	{
@@ -71,7 +73,7 @@ function insertChunk(chunk, i) {
 }
 
 function start() {
-	var stmt = db.prepare("SELECT hyperlink, dataid FROM hyperlinks WHERE downloaded = 0");
+	var stmt = db.prepare("SELECT hyperlink, dataid FROM hyperlinks WHERE downloaded = 0 limit 100000");
 	var counter = 0;
 	stmt.all(function(err, rows) {
 		console.log("Finished reading all hyperlinks.");
