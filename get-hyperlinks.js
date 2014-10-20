@@ -65,7 +65,7 @@ function start() {
 		functions.push(processLetter(String.fromCharCode(cc)));
 	}
 	async(functions, function() {
-		console.log('Finished downloading public profile hyperlinks.')
+		console.log('Finished downloading public profile hyperlinks.');
 		db.close();
 	});
 }
