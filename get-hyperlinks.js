@@ -25,7 +25,7 @@ function processOnePage(letter, pagenumber, stmt) {
 	};
 }
 
-function procesLetterPages(letter, numOfPages) {
+function procesLetterPages(letter, numOfPages, callback) {
 	var functions = [];
 	var stmt = db.prepare("INSERT INTO hyperlinks VALUES (?, NULL, 0)");
 	for (var i = 1; i <= numOfPages; i++)
@@ -34,7 +34,9 @@ function procesLetterPages(letter, numOfPages) {
 	}
 	async(functions, function(){
 		console.log('Finalized letter ' + letter);
-		stmt.finalize();
+		stmt.finalize(function() {
+			callback();
+		});
 	});	
 }
 
@@ -50,8 +52,9 @@ function processLetter(letter) {
 		request(validurl, function(err, resp, html) {
 			var numOfPages = numberOfPages(html);
 			console.log('Starting letter ' + letter + '\t with no of pages ' + numOfPages + '...');
-			procesLetterPages(letter, numOfPages);
-			callback();
+			procesLetterPages(letter, numOfPages, function() {
+				callback();
+			});
 		});
 	};
 }
