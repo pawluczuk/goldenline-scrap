@@ -5,38 +5,6 @@ var async = require('async-series');
 var util = require('util');
 var db = new sqlite3.Database('goldenline');
 
-//  invalid
-function saveProfileToDb(dataid, work, edu, tags, summary) {
-	var insert = db.prepare("INSERT INTO users VALUES ($dataid, $work, $edu, $tags, $summary)", {
-		$dataid : dataid,
-		$work : work,
-		$edu : edu,
-		$tags : tags,
-		$summary : summary
-	});
-	var update = db.prepare("UPDATE hyperlinks SET downloaded = 1 WHERE dataid = ?", dataid);
-	insert.run(function() {
-		//update.finalize();
-	});
-}
-// invalid
-function saveProfileFromURL(url) {
-	request(url, function(err, resp, html) {
-			var $ = cheerio.load(html);
-			var tags = $('.user-summary ul li').text().replace(/\s+/g, ' ');
-			var summary = $('.user-summary .headline').text().replace(/\s+/g, ' ');
-			var data = [];
-			var sections = $('.details section').each(function(){
-				var section = $(this).prevAll('.title').first().text().replace(/\s+/g, '');
-				if (section === 'Podsumowanie') section = 'Praca';
-				if (!$(this).hasClass('experience')) return true;
-				if (!data[section]) data[section] = [];
-				data[section][data[section].length] = $(this).text().replace(/\s+/g, ' ').replace('Zobacz pełny profil', '');
-			});
-			saveProfileToDb(1, data['Praca'], data['Edukacja'], tags, summary);
-		});
-}
-
 function parseData(html) {
 	var $ = cheerio.load(html);
 	var data = [];
