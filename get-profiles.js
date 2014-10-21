@@ -7,15 +7,14 @@ var db = new sqlite3.Database('goldenline');
 function parseData(html) {
 	var $ = cheerio.load(html);
 	var data = [];
-	var sections = $('.details section');
-	if (!sections.length) return null;
-	section.each(function(){
+	var sections = $('.details section').each(function(){
 		var section = $(this).prevAll('.title').first().text().replace(/\s+/g, '');
 		if (section === 'Podsumowanie') section = 'Praca';
 		if (!$(this).hasClass('experience')) return true;
 		if (!data[section]) data[section] = [];
 		data[section] += $(this).text().replace(/\s+/g, ' ').replace('Zobacz pełny profil', '') + ';';
 	});
+	
 	var dataid = $('.basicInfo').attr('data-id');
 	var tags = $('.user-summary ul li').text().replace(/\s+/g, ' ');
 	var summary = $('.user-summary .headline').text().replace(/\s+/g, ' ');
@@ -36,14 +35,12 @@ function saveProfile(url, insert, update) {
 	return function(callback) {
 		request(url, function(err, response, html) {
 			var obj = parseData(html);
-			if (obj !== null) {
-				insert.run(obj, function() {
-					update.run({ $dataid : obj.$dataid, $hyperlink : url}, function() {
-						console.log('Ins: ' + obj.$dataid + ' Url: ' + url);
-						callback();
-					});
+			insert.run(obj, function() {
+				update.run({ $dataid : obj.$dataid, $hyperlink : url}, function() {
+					console.log('Ins: ' + obj.$dataid + ' Url: ' + url);
+					callback();
 				});
-			}
+			});
 		});
 	};
 }
@@ -76,7 +73,7 @@ function insertChunk(chunk, i) {
 }
 
 function start() {
-	var stmt = db.prepare("SELECT hyperlink FROM hyperlinks WHERE downloaded = 0 limit 1000");
+	var stmt = db.prepare("SELECT hyperlink FROM hyperlinks WHERE downloaded = 0 limit 100000");
 	var counter = 0;
 	stmt.all(function(err, rows) {
 		console.log("Finished reading all hyperlinks.");
