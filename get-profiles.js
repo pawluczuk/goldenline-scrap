@@ -34,13 +34,21 @@ function parseData(html) {
 function saveProfile(url, insert, update) {
 	return function(callback) {
 		request(url, function(err, response, html) {
-			var obj = parseData(html);
-			insert.run(obj, function() {
-				update.run({ $dataid : obj.$dataid, $hyperlink : url}, function() {
-					console.log('Ins: ' + obj.$dataid + ' Url: ' + url);
+			if (!err && response.statusCode == 200) {
+				var obj = parseData(html);
+				insert.run(obj, function() {
+					update.run({ $dataid : obj.$dataid, $hyperlink : url}, function() {
+						console.log('Ins: ' + obj.$dataid + ' Url: ' + url);
+						callback();
+					});
+				});
+			}
+			else if (!err) {
+				update.run({ $dataid : 0, $hyperlink : url}, function() {
+					console.log('Not inserted: ' + url + '(not found or error).');
 					callback();
 				});
-			});
+			}
 		});
 	};
 }
@@ -66,17 +74,17 @@ function downloadChunk(chunk, callback) {
 function insertChunk(chunk, i) {
 	return function(callback) {
 		downloadChunk(chunk, function() {
-			console.log('Downloaded chunk of profiles: ' + i + '-' + (i + 1000));
+			console.log('Saved chunk of profiles: ' + i + '-' + (i + 1000) + ' to database.');
 			callback();
 		});
 	};
 }
 
 function start() {
-	var stmt = db.prepare("SELECT hyperlink FROM hyperlinks WHERE downloaded = 0 limit 100000");
+	var stmt = db.prepare("SELECT hyperlink FROM hyperlinks WHERE downloaded = 0 limit 10000");
 	var counter = 0;
 	stmt.all(function(err, rows) {
-		console.log("Finished reading all hyperlinks.");
+		console.log("Finished reading all hyperlinks: " + rows.length);
 		functions = [];
 		for (var i = 0; i < rows.length; i += 1000)
 		{
